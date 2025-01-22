@@ -1,0 +1,57 @@
+[project]
+name = "server_template"
+version = "1.0.0"
+uvicorn_port = 8000
+
+[database]
+url = "sqlite:///./data.db"
+migration_dir = "migrations"
+
+[security]
+jwt_secret = "${JWT_SECRET}"
+roles = ["role1", "role2", "admin"]
+
+[actor.role1]
+fields = [
+    { name = "field1", type = "uuid", primary = true },
+    { name = "field2", type = "str" },
+    { name = "field3", type = "date" }
+]
+permissions = { create = ["public"], read = ["owner", "role1", "admin"], update = ["owner", "admin"] }
+
+[actor.role2]
+fields = [
+    { name = "field1", type = "uuid", primary = true },
+    { name = "field2", type = "str", choices = ["typeA", "typeB"] }
+]
+permissions = { create = ["admin"], read = ["owner", "admin"] }
+
+
+[model.role1]
+fields = [
+    { name = "field1", type = "uuid", primary = true },
+    { name = "field2", type = "str", choices = ["typeA", "typeB"] }
+]
+permissions = { create = ["admin"], read = ["owner", "admin"] }
+
+[cron.job1]
+schedule = "0 * * * *"
+handler = "tasks.job1"
+
+[cron.job2]
+schedule = "0 0 * * *"
+handler = "tasks.job2"
+
+[ai]
+api_key = "${AI_KEY}"
+base_url = "https://api.openai.com/v1"
+
+[[ai.assistants]]
+name = "assistant1"
+prompt = "Generic assistant prompt"
+endpoint = "/chat/assistant1"
+access = ["role1"]
+
+[testing]
+active = true
+

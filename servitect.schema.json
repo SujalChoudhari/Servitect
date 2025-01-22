@@ -1,0 +1,99 @@
+{
+    "project": {
+        "name": "defa",
+        "version": "0.0.1",
+        "uvicorn_port": 8005
+    },
+    "database": {
+        "url": "sqlite:///./_data.db",
+        "migration_dir": "migrations"
+    },
+    "security": {
+        "jwt_secret": "CHANGE_THIS_SECRET"
+    },
+    "actor": {
+        "admin": {
+            "fields": [
+                {
+                    "name": "id",
+                    "type": "str",
+                    "primary": true
+                },
+                {
+                    "name": "password",
+                    "type": "str",
+                    "primary": false
+                }
+            ],
+            "permissions": {
+                "read": [
+                    "self"
+                ],
+                "write": [
+                    "admin"
+                ]
+            }
+        },
+        "user": {
+            "fields": [
+                {
+                    "name": "id",
+                    "type": "str",
+                    "primary": true
+                },
+                {
+                    "name": "username",
+                    "type": "str",
+                    "primary": false
+                },
+                {
+                    "name": "first_name",
+                    "type": "str",
+                    "primary": false
+                },
+                {
+                    "name": "last_name",
+                    "type": "str",
+                    "primary": false
+                },
+                {
+                    "name": "email",
+                    "type": "str",
+                    "primary": false
+                },
+                {
+                    "name": "password",
+                    "type": "str",
+                    "primary": false
+                }
+            ],
+            "permissions": {
+                "read": [
+                    "self"
+                ],
+                "write": [
+                    "admin"
+                ]
+            }
+        }
+    },
+    "model": {},
+    "cron": {},
+    "ai": {
+        "api_key": "default_api_keys",
+        "base_url": "https://api.openai.com/v2",
+        "assistants": [
+            {
+                "name": "ass",
+                "prompt": "ist",
+                "access": [
+                    "admin",
+                    "user"
+                ]
+            }
+        ]
+    },
+    "testing": {
+        "active": false
+    }
+}
