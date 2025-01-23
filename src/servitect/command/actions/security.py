@@ -1,4 +1,4 @@
-import inquirer
+import questionary
 from design_structure import DesignStructure
 from rich import print
 
@@ -9,18 +9,17 @@ def security(design_structure: DesignStructure) -> None:
     security_data = design_structure.security
 
     while True:
-        questions = [
-            inquirer.Text(
-                "jwt_secret",
-                message="Enter JWT Secret",
-                default=security_data.jwt_secret,
-            ),
-        ]
+        jwt_secret = questionary.text(
+            "Enter JWT Secret",
+            default=security_data.jwt_secret
+        ).ask()
 
-        answers = inquirer.prompt(questions)
-        jwt_secret = answers["jwt_secret"]
+        if jwt_secret is None:
+            print("[bold red]Operation cancelled by user.[/bold red]")
+            return
 
         if validate_jwt_secret(jwt_secret):
             security_data.jwt_secret = jwt_secret
             break
+
         print("[bold red]Invalid JWT secret. It must be at least 8 characters long.[/bold red]")

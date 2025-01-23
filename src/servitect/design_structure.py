@@ -1,7 +1,7 @@
 import json
 from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, List
-
+import questionary
 from dacite import from_dict
 from rich import box
 from rich.columns import Columns
@@ -30,21 +30,15 @@ class Security:
 
 
 @dataclass
-class ActorField:
+class ModelField:
     name: str = field(default_factory=lambda: "default_field")
     type: str = field(default_factory=lambda: "str")
     primary: bool = field(default_factory=lambda: False)
 
 
 @dataclass
-class Actor:
-    fields: List[ActorField] = field(default_factory=list)
-    permissions: Dict[str, List[str]] = field(default_factory=dict)
-
-
-@dataclass
 class Model:
-    fields: List[ActorField] = field(default_factory=list)
+    fields: List[ModelField] = field(default_factory=list)
     permissions: Dict[str, List[str]] = field(default_factory=dict)
 
 
@@ -78,7 +72,7 @@ class DesignStructure:
     project: Project = field(default_factory=Project)
     database: Database = field(default_factory=Database)
     security: Security = field(default_factory=Security)
-    actor: Dict[str, Actor] = field(default_factory=lambda: dict())
+    actor: Dict[str, Model] = field(default_factory=lambda: dict())
     model: Dict[str, Model] = field(default_factory=lambda: dict())
     cron: Dict[str, CronJob] = field(default_factory=lambda: dict())
     ai: AI = field(default_factory=AI)
@@ -86,163 +80,131 @@ class DesignStructure:
 
 
 DESIGN_DEFAULT_STATE: DesignStructure = DesignStructure()
-DESIGN_DEFAULT_STATE.actor["admin"] = Actor(
+DESIGN_DEFAULT_STATE.actor["admin"] = Model(
     permissions={"read": ["self"], "write": ["admin"]},
     fields=[
-        ActorField(name="id", type="str", primary=True),
-        ActorField(name="password", type="str", primary=False),
+        ModelField(name="id", type="str", primary=True),
+        ModelField(name="password", type="str", primary=False),
     ],
 )
 
-DESIGN_DEFAULT_STATE.actor["user"] = Actor(
+DESIGN_DEFAULT_STATE.actor["user"] = Model(
     permissions={"read": ["self"], "write": ["admin"]},
     fields=[
-        ActorField(name="id", type="str", primary=True),
-        ActorField(name="username", type="str", primary=False),
-        ActorField(name="first_name", type="str", primary=False),
-        ActorField(name="last_name", type="str", primary=False),
-        ActorField(name="email", type="str", primary=False),
-        ActorField(name="password", type="str", primary=False),
+        ModelField(name="id", type="str", primary=True),
+        ModelField(name="username", type="str", primary=False),
+        ModelField(name="first_name", type="str", primary=False),
+        ModelField(name="last_name", type="str", primary=False),
+        ModelField(name="email", type="str", primary=False),
+        ModelField(name="password", type="str", primary=False),
     ],
 )
 
 
 def display_design_structure(state: DesignStructure = DESIGN_DEFAULT_STATE) -> None:
+    from rich.console import Console
+    from rich.panel import Panel
+    from rich.text import Text
+    import questionary
+
     console = Console()
-    layout = Layout()
 
-    # Split into main sections
-    layout.split_column(Layout(name="header", size=3), Layout(name="main", ratio=4))
-
-    # Split main section into three columns
-    layout["main"].split_row(
-        Layout(name="config", ratio=1),
-        Layout(name="entities", ratio=2),
-        Layout(name="services", ratio=1),
-    )
-
-    # Header with title
-    layout["header"].update(
-        Panel(Text("Design Structure Dashboard", style="bold magenta"), box=box.HEAVY)
-    )
-
-    # Helper function for creating panels
-    def create_panel(title: str, content: str) -> Panel:
+    def section_panel(content, title):
         return Panel(
-            Text.from_markup(content),
-            title=f"[bold magenta]{title}[/bold magenta]",
-            box=box.ROUNDED,
-            border_style="blue",
+            content, 
+            title=title, 
+            border_style="cyan", 
+            title_align="left", 
+            expand=False
         )
 
-    # Configuration section (left column)
-    config_panels = []
+    def highlight_info(label, value):
+        return f"[bold cyan]{label}:[/bold cyan] [white]{value}[/white]"
 
-    # Project config
-    project_content = "\n".join(
-        [
-            f"[cyan]Name:[/cyan] {state.project.name}",
-            f"[cyan]Version:[/cyan] {state.project.version}",
-            f"[cyan]Port:[/cyan] {state.project.uvicorn_port}",
-        ]
-    )
-    config_panels.append(create_panel("Project", project_content))
+    # Project Configuration
+    project_content = "\n".join([
+        highlight_info("Name", state.project.name),
+        highlight_info("Version", state.project.version),
+        highlight_info("Port", state.project.uvicorn_port)
+    ])
+    console.print(section_panel(project_content, "PROJECT CONFIGURATION"))
+    questionary.press_any_key_to_continue("Press any key to continue...").ask()
 
-    # Database config
-    db_content = "\n".join(
-        [
-            f"[cyan]URL:[/cyan] {state.database.url}",
-            f"[cyan]Migrations:[/cyan] {state.database.migration_dir}",
-        ]
-    )
-    config_panels.append(create_panel("Database", db_content))
+    # Database Configuration
+    db_content = "\n".join([
+        highlight_info("URL", state.database.url),
+        highlight_info("Migration Directory", state.database.migration_dir)
+    ])
+    console.print(section_panel(db_content, "DATABASE CONFIGURATION"))
+    questionary.press_any_key_to_continue("Press any key to continue...").ask()
 
-    # Security config
-    security_content = f"[cyan]JWT Secret:[/cyan] {state.security.jwt_secret}"
-    config_panels.append(create_panel("Security", security_content))
-
-    # Testing config
-    testing_content = f"[cyan]Active:[/cyan] {state.testing.active}"
-    config_panels.append(create_panel("Testing", testing_content))
-
-    layout["main"]["config"].update(Columns([*config_panels], equal=True))
-
-    # Entities section (middle column)
-    entity_panels = []
+    # Security Configuration
+    security_content = highlight_info("JWT Secret", state.security.jwt_secret)
+    console.print(section_panel(security_content, "SECURITY"))
+    questionary.press_any_key_to_continue("Press any key to continue...").ask()
 
     # Actors
+    actors_content = []
     for name, actor in state.actor.items():
-        fields = "\n".join(
-            [
-                f"[cyan]{field.name}[/cyan] ([white]{field.type}[/white]"
-                + f"{' [yellow]PRIMARY[/yellow]' if field.primary else ''})"
-                for field in actor.fields
-            ]
-        )
-        perms = "\n".join(
-            [
-                f"[cyan]{action}:[/cyan] {', '.join(roles)}"
-                for action, roles in actor.permissions.items()
-            ]
-        )
-        content = (
-            f"[bold]Fields:[/bold]\n{fields}\n\n[bold]Permissions:[/bold]\n{perms}"
-        )
-        entity_panels.append(create_panel(f"Actor: {name}", content))
+        actor_details = [f"[bold green]Actor: {name}[/bold green]"]
+        actor_details.append("  [yellow]Fields:[/yellow]")
+        actor_details.extend([
+            f"    - {field.name} ([italic white]{field.type}[/italic white])" 
+            for field in actor.fields
+        ])
+        actor_details.append("  [yellow]Permissions:[/yellow]")
+        actor_details.extend([
+            f"    - [cyan]{action}:[/cyan] {', '.join(roles)}" 
+            for action, roles in actor.permissions.items()
+        ])
+        actors_content.append("\n".join(actor_details))
+    console.print(section_panel("\n\n".join(actors_content), "ACTORS"))
+    questionary.press_any_key_to_continue("Press any key to continue...").ask()
 
     # Models
+    models_content = []
     for name, model in state.model.items():
-        fields = "\n".join(
-            [
-                f"[cyan]{field.name}[/cyan] ([white]{field.type}[/white]"
-                + f"{' [yellow]PRIMARY[/yellow]' if field.primary else ''})"
-                for field in model.fields
-            ]
-        )
-        perms = "\n".join(
-            [
-                f"[cyan]{action}:[/cyan] {', '.join(roles)}"
-                for action, roles in model.permissions.items()
-            ]
-        )
-        content = (
-            f"[bold]Fields:[/bold]\n{fields}\n\n[bold]Permissions:[/bold]\n{perms}"
-        )
-        entity_panels.append(create_panel(f"Model: {name}", content))
-
-    layout["main"]["entities"].update(Columns([*entity_panels], equal=True))
-
-    # Services section (right column)
-    service_panels = []
-
-    # AI Configuration
-    ai_content = "\n".join(
-        [
-            f"[cyan]API Key:[/cyan] {state.ai.api_key}",
-            f"[cyan]Base URL:[/cyan] {state.ai.base_url}",
-        ]
-    )
-    for assistant in state.ai.assistants:
-        ai_content += f"\n\n[bold]Assistant: {assistant.name}[/bold]"
-        ai_content += f"\n[cyan]Prompt:[/cyan] {assistant.prompt}"
-        ai_content += f"\n[cyan]Access:[/cyan] {', '.join(assistant.access)}"
-    service_panels.append(create_panel("AI Configuration", ai_content))
+        model_details = [f"[bold green]Model: {name}[/bold green]"]
+        model_details.append("  [yellow]Fields:[/yellow]")
+        model_details.extend([
+            f"    - {field.name} ([italic white]{field.type}[/italic white])" 
+            for field in model.fields
+        ])
+        model_details.append("  [yellow]Permissions:[/yellow]")
+        model_details.extend([
+            f"    - [cyan]{action}:[/cyan] {', '.join(roles)}" 
+            for action, roles in model.permissions.items()
+        ])
+        models_content.append("\n".join(model_details))
+    console.print(section_panel("\n\n".join(models_content), "MODELS"))
+    questionary.press_any_key_to_continue("Press any key to continue...").ask()
 
     # Cron Jobs
-    for name, job in state.cron.items():
-        cron_content = "\n".join(
-            [
-                f"[cyan]Schedule:[/cyan] {job.schedule}",
-                f"[cyan]Handler:[/cyan] {job.handler}",
+    if state.cron:
+        cron_content = []
+        for name, job in state.cron.items():
+            job_details = [
+                f"[bold green]Job: {name}[/bold green]",
+                highlight_info("  Schedule", job.schedule),
+                highlight_info("  Handler", job.handler)
             ]
-        )
-        service_panels.append(create_panel(f"Cron: {name}", cron_content))
+            cron_content.append("\n".join(job_details))
+        console.print(section_panel("\n\n".join(cron_content), "CRON JOBS"))
+    else:
+        console.print(section_panel("[italic red]No cron jobs configured.[/italic red]", "CRON JOBS"))
+    questionary.press_any_key_to_continue("Press any key to continue...").ask()
 
-    layout["main"]["services"].update(Columns([*service_panels], equal=True))
+    # AI Configuration
+    ai_content = "\n".join([
+        highlight_info("API Key", state.ai.api_key),
+        highlight_info("Base URL", state.ai.base_url),
+        highlight_info("Assistants", len(state.ai.assistants))
+    ])
+    console.print(section_panel(ai_content, "AI CONFIGURATION"))
 
-    # Display the complete dashboard
-    console.print(layout)
-
+    # Testing
+    testing_content = highlight_info("Active", state.testing.active)
+    console.print(section_panel(testing_content, "TESTING"))
 
 def project_to_dict(project: Project) -> Dict[str, Any]:
     return asdict(project)
@@ -268,22 +230,6 @@ def security_from_dict(data: Dict[str, Any]) -> Security:
     return from_dict(data_class=Security, data=data)
 
 
-def actor_to_dict(actor: Actor) -> Dict[str, Any]:
-    return {
-        "fields": [asdict(field) for field in actor.fields],
-        "permissions": actor.permissions,
-    }
-
-
-def actor_from_dict(data: Dict[str, Any]) -> Actor:
-    return Actor(
-        fields=[
-            from_dict(data_class=ActorField, data=field) for field in data["fields"]
-        ],
-        permissions=data["permissions"],
-    )
-
-
 def model_to_dict(model: Model) -> Dict[str, Any]:
     return {
         "fields": [asdict(field) for field in model.fields],
@@ -294,7 +240,7 @@ def model_to_dict(model: Model) -> Dict[str, Any]:
 def model_from_dict(data: Dict[str, Any]) -> Model:
     return Model(
         fields=[
-            from_dict(data_class=ActorField, data=field) for field in data["fields"]
+            from_dict(data_class=ModelField, data=field) for field in data["fields"]
         ],
         permissions=data["permissions"],
     )
@@ -340,7 +286,7 @@ def design_structure_to_json(state: DesignStructure) -> str:
         "project": project_to_dict(state.project),
         "database": database_to_dict(state.database),
         "security": security_to_dict(state.security),
-        "actor": {key: actor_to_dict(value) for key, value in state.actor.items()},
+        "actor": {key: model_to_dict(value) for key, value in state.actor.items()},
         "model": {key: model_to_dict(value) for key, value in state.model.items()},
         "cron": {key: cron_to_dict(value) for key, value in state.cron.items()},
         "ai": ai_to_dict(state.ai),
@@ -354,7 +300,7 @@ def json_to_design_structure(data: dict) -> DesignStructure:
         project=project_from_dict(data["project"]),
         database=database_from_dict(data["database"]),
         security=security_from_dict(data["security"]),
-        actor={key: actor_from_dict(value) for key, value in data["actor"].items()},
+        actor={key: model_from_dict(value) for key, value in data["actor"].items()},
         model={key: model_from_dict(value) for key, value in data["model"].items()},
         cron={key: cron_from_dict(value) for key, value in data["cron"].items()},
         ai=ai_from_dict(data["ai"]),

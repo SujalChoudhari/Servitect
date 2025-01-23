@@ -1,11 +1,13 @@
-import inquirer
+import questionary
 import copy
 
-from command.actions.actor import actor
 from command.actions.ai import ai
 from command.actions.cron import cron
+from command.actions.database import database
+from command.actions.model import actor, model
 from command.actions.project import project
 from command.actions.security import security
+from command.actions.testing import testing
 from design_structure import (
     DESIGN_DEFAULT_STATE,
     DesignStructure,
@@ -19,7 +21,6 @@ import rich
 
 current_state: DesignStructure = None
 
-
 def design() -> None:
     global current_state
     schema_file = "servitect.schema.json"
@@ -29,38 +30,35 @@ def design() -> None:
     else:
         current_state = copy.deepcopy(DESIGN_DEFAULT_STATE)
         with open(schema_file, "w") as f:
-            f.write(json.dumps(design_structure_to_json(current_state),indent=4))
+            f.write(json.dumps(design_structure_to_json(current_state), indent=4))
     while True:
         show_menu()
         rich.print("[bold green]Saved changes![/bold green]")
         with open(schema_file, "w") as f:
-            f.write(json.dumps(design_structure_to_json(current_state),indent=4))
-
+            f.write(json.dumps(design_structure_to_json(current_state), indent=4))
 
 def show_menu() -> None:
     """Show a menu for user to select."""
-    questions = [
-        inquirer.List(
-            "action",
-            message="Select an action",
-            choices=[
-                "View",
-                "Project",
-                "Database",
-                "Security",
-                "Actor",
-                "Model",
-                "Cron",
-                "AI",
-                "Testing",
-                "Exit",
-            ],
-            carousel=True,
-        ),
-    ]
+    action = questionary.select(
+        "Select an action",
+        choices=[
+            "View",
+            "Project",
+            "Database",
+            "Security",
+            "Actor",
+            "Model",
+            "Cron",
+            "AI",
+            "Testing",
+            "Exit",
+        ],
+        use_indicator=True,
+    ).ask()
 
-    answers = inquirer.prompt(questions)
-    action = answers["action"]
+    if action is None:  # Handle case when the user cancels the prompt
+        print("No action selected. Exiting.")
+        terminate(None)
 
     functions = {
         "View": view,
@@ -80,27 +78,9 @@ def show_menu() -> None:
     else:
         print("Invalid selection")
 
-
 def view(current_state: DesignStructure) -> None:
     display_design_structure(current_state)
-    input("Press Enter to continue...")
-
+    questionary.press_any_key_to_continue("Press any key to continue...").ask()
 
 def terminate(_: DesignStructure) -> None:
     raise SystemExit()
-
-
-def database():
-    pass
-
-
-def model():
-    pass
-
-
-def testing():
-    pass
-
-
-def exit():
-    pass

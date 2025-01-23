@@ -1,126 +1,142 @@
-import inquirer
+import questionary
 from design_structure import DesignStructure, AIAssistant
 from rich import print
+from questionary import ValidationError
 
 
 def ai(design_structure: DesignStructure) -> None:
     ai_data = design_structure.ai
 
-    while True:
-        questions = [
-            inquirer.List(
-                "action",
-                message="Select an action",
-                choices=[
-                    "Edit API Key and Base URL",
-                    "Edit Assistants",
-                    "Exit",
-                ],
-                carousel=True,
-            ),
-        ]
+    def validate_name(value):
+        """Validate unique assistant name."""
+        if any(assistant.name == value for assistant in ai_data.assistants):
+            raise ValidationError(message="Assistant with this name already exists")
+        return value
 
-        answers = inquirer.prompt(questions)
-        action = answers["action"]
+    while True:
+        action = questionary.select(
+            "Select an action",
+            choices=[
+                "Edit API Key and Base URL",
+                "Edit Assistants",
+                "Exit",
+            ],
+            use_arrow_keys=True,
+        ).ask()
 
         if action == "Edit API Key and Base URL":
-            api_key = inquirer.text(
-                message="Enter the API Key", default=ai_data.api_key
-            )
-            base_url = inquirer.text(
-                message="Enter the Base URL", default=ai_data.base_url
-            )
+            api_key = questionary.text(
+                "Enter the API Key", default=ai_data.api_key
+            ).ask()
+            base_url = questionary.text(
+                "Enter the Base URL", default=ai_data.base_url
+            ).ask()
             ai_data.api_key = api_key
             ai_data.base_url = base_url
         elif action == "Edit Assistants":
             while True:
-                questions = [
-                    inquirer.List(
-                        "action",
-                        message="Select an action",
-                        choices=[
-                            "Add a new Assistant",
-                            "Edit an existing Assistant",
-                            "Delete an Assistant",
-                            "Exit",
-                        ],
-                        carousel=True,
-                    ),
-                ]
+                assistant_action = questionary.select(
+                    "Select an action",
+                    choices=[
+                        "Add a new Assistant",
+                        "Edit an existing Assistant",
+                        "Delete an Assistant",
+                        "Exit",
+                    ],
+                    use_arrow_keys=True,
+                ).ask()
 
-                answers = inquirer.prompt(questions)
-                action = answers["action"]
+                if assistant_action == "Add a new Assistant":
+                    name = questionary.text(
+                        "Enter the name for the new Assistant", validate=validate_name
+                    ).ask()
 
-                if action == "Add a new Assistant":
-                    name = inquirer.text(
-                        message="Enter the name for the new Assistant"
-                    )
-                    if any(assistant.name == name for assistant in ai_data.assistants):
-                        print("[bold red]Assistant with this name already exists[/bold red]")
-                        continue
                     if not design_structure.actor:
-                        print("[bold red]No actors available, cannot add assistant[/bold red]")
+                        print(
+                            "[bold red]No actors available, cannot add assistant[/bold red]"
+                        )
                         continue
-                    prompt = inquirer.text(
-                        message="Enter the prompt for the new Assistant"
-                    )
-                    access = inquirer.checkbox(
-                        message="Select actors to give access to",
-                        choices=list(design_structure.actor.keys()),
-                    )
+
+                    prompt = questionary.text(
+                        "Enter the prompt for the new Assistant"
+                    ).ask()
+
+                    access = questionary.select(
+                        "Select actors to give access to",
+                        choices=[actor for actor in design_structure.actor.keys()],
+                    ).ask()
+
                     ai_data.assistants.append(
-                        AIAssistant(name=name, prompt=prompt, access=access)
+                        AIAssistant(name=name, prompt=prompt, access=[access])
                     )
-                elif action == "Edit an existing Assistant":
+                elif assistant_action == "Edit an existing Assistant":
                     assistants = [
-                        (assistant.name, assistant)
-                        for assistant in ai_data.assistants
+                        (assistant.name, assistant) for assistant in ai_data.assistants
                     ]
                     if not assistants:
                         print("[bold red]No assistants to edit[/bold red]")
                         continue
-                    assistant_name = inquirer.list_input(
-                        "Select an assistant to edit", choices=[name for name, _ in assistants]
-                    )
+                    assistant_name = questionary.select(
+                        "Select an assistant to edit",
+                        choices=[name for name, _ in assistants],
+                    ).ask()
+
                     assistant = next(
-                        (assistant for name, assistant in assistants if name == assistant_name), None
+                        (
+                            assistant
+                            for name, assistant in assistants
+                            if name == assistant_name
+                        ),
+                        None,
                     )
+
                     if assistant is None:
                         print("[bold red]Invalid selection[/bold red]")
                         continue
                     if not design_structure.actor:
-                        print("[bold red]No actors available, cannot edit assistant[/bold red]")
+                        print(
+                            "[bold red]No actors available, cannot edit assistant[/bold red]"
+                        )
                         continue
-                    name = inquirer.text(
-                        message="Enter the new name for the assistant",
+
+                    name = questionary.text(
+                        "Enter the new name for the assistant",
                         default=assistant.name,
-                    )
-                    prompt = inquirer.text(
-                        message="Enter the new prompt for the assistant",
+                    ).ask()
+                    prompt = questionary.text(
+                        "Enter the new prompt for the assistant",
                         default=assistant.prompt,
-                    )
-                    access = inquirer.checkbox(
-                        message="Select actors to give access to",
-                        choices=list(design_structure.actor.keys()),
+                    ).ask()
+                    access = questionary.autocomplete(
+                        "Select actors to give access to",
+                        choices=[actor for actor in design_structure.actor.keys()],
                         default=assistant.access,
-                    )
+                    ).ask()
+
                     assistant.name = name
                     assistant.prompt = prompt
-                    assistant.access = access
-                elif action == "Delete an Assistant":
+                    assistant.access = [access]
+                elif assistant_action == "Delete an Assistant":
                     assistants = [
-                        (assistant.name, assistant)
-                        for assistant in ai_data.assistants
+                        (assistant.name, assistant) for assistant in ai_data.assistants
                     ]
                     if not assistants:
                         print("[bold red]No assistants to delete[/bold red]")
                         continue
-                    assistant_name = inquirer.list_input(
-                        "Select an assistant to delete", choices=[name for name, _ in assistants]
-                    )
+                    assistant_name = questionary.autocomplete(
+                        "Select an assistant to delete",
+                        choices=[name for name, _ in assistants],
+                    ).ask()
+
                     assistant = next(
-                        (assistant for name, assistant in assistants if name == assistant_name), None
+                        (
+                            assistant
+                            for name, assistant in assistants
+                            if name == assistant_name
+                        ),
+                        None,
                     )
+
                     if assistant is None:
                         print("[bold red]Invalid selection[/bold red]")
                         continue

@@ -1,15 +1,15 @@
 {
     "project": {
-        "name": "defa",
-        "version": "0.0.1",
-        "uvicorn_port": 8005
+        "name": "default",
+        "version": "0.1.1",
+        "uvicorn_port": 8000
     },
     "database": {
-        "url": "sqlite:///./_data.db",
-        "migration_dir": "migrations"
+        "url": "sqlite://data.db",
+        "migration_dir": "migrationss"
     },
     "security": {
-        "jwt_secret": "CHANGE_THIS_SECRET"
+        "jwt_secret": "CHANGE_THIS_SECRET_IN_PROD"
     },
     "actor": {
         "admin": {
@@ -75,10 +75,84 @@
                     "admin"
                 ]
             }
+        },
+        "Patient": {
+            "fields": [
+                {
+                    "name": "id (int)",
+                    "type": "int",
+                    "primary": false
+                },
+                {
+                    "name": "username (str)",
+                    "type": "str",
+                    "primary": false
+                },
+                {
+                    "name": "email (str)",
+                    "type": "str",
+                    "primary": false
+                },
+                {
+                    "name": "created_at (datetime)",
+                    "type": "str",
+                    "primary": false
+                },
+                {
+                    "name": "updated_at (datetime)",
+                    "type": "str",
+                    "primary": false
+                }
+            ],
+            "permissions": {
+                "create": "admin",
+                "read": "admin",
+                "update": "public",
+                "delete": "self"
+            }
         }
     },
-    "model": {},
-    "cron": {},
+    "model": {
+        "Model1": {
+            "fields": [
+                {
+                    "name": "id",
+                    "type": "fox",
+                    "primary": false
+                }
+            ],
+            "permissions": {
+                "create": [
+                    "self",
+                    "public"
+                ],
+                "read": [
+                    "self",
+                    "admin",
+                    "public"
+                ],
+                "update": [
+                    "self",
+                    "admin",
+                    "public"
+                ],
+                "delete": [
+                    "admin",
+                    "public"
+                ]
+            }
+        }
+    },
+    "cron": {
+        "hello": {
+            "schedule": "0 0 * * 0",
+            "handler": "hello"
+        },
+        "test": {
+            "schedule": "0 * * * *",
+            "handler": "test"
+        }
+    },
     "ai": {
         "api_key": "default_api_keys",
         "base_url": "https://api.openai.com/v2",
@@ -94,6 +168,6 @@
         ]
     },
     "testing": {
-        "active": false
+        "active": true
     }
 }
